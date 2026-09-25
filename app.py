@@ -475,8 +475,8 @@ HAZARD_PROMPT = (
 #: The model this function asks for. Gemini 1.5 Flash has since been shut down
 #: by Google, so a live key will get a 404 on this name and we fall back down
 #: the list below. Override HAZARD_MODEL to pin a different model.
-HAZARD_MODEL = "gemini-1.5-flash"
-HAZARD_MODEL_FALLBACKS = ("gemini-2.5-flash", "gemini-2.0-flash")
+HAZARD_MODEL = "gemini-3.8-flash"
+HAZARD_MODEL_FALLBACKS = ("gemini-3.5-flash", "gemini-3.5-flash-lite")
 
 
 @dataclass

@@ -1,10 +1,7 @@
-"""Mock campus dataset: buildings, walkways, vertical links and features.
+"""Campus dataset for JIIT Noida Sector 62: buildings, walkways, vertical links and features.
 
-Everything lives on a single ``1000 x 640`` "map unit" canvas so the SVG
-renderer (custom component) and the router (Dijkstra) share one set of
-coordinates and one set of accessibility attributes.
-
-All data in this module is fictional and exists only to drive the prototype.
+Everything lives on a single ``1000 x 640`` canvas so the SVG
+renderer and the router share one set of coordinates and accessibility attributes.
 """
 
 from __future__ import annotations
@@ -100,15 +97,7 @@ class Place:
 
 @dataclass(frozen=True)
 class Edge:
-    """A walkable connection between two places.
-
-    ``style`` drives how the renderer draws it:
-
-    * ``walk``         - ordinary polyline through ``points``
-    * ``elevator``     - vertical link, drawn as a dashed lift shaft
-    * ``stairs``       - vertical link, drawn as a stepped run
-    * ``construction`` - closed segment, drawn dashed and red
-    """
+    """A walkable connection between two places."""
 
     id: str
     a: str
@@ -163,38 +152,38 @@ class Feature:
 
 
 # --------------------------------------------------------------------------
-# Places
+# Places (JIIT Sector 62 Layout)
 # --------------------------------------------------------------------------
 
 PLACES: tuple[Place, ...] = (
-    Place("MAIN_GATE", "Main Gate", 110, 545, 130, 80,
-          aliases=("gate", "gates", "entrance", "entry", "front gate")),
-    Place("TRANSIT", "Transit Stop", 105, 335, 120, 70,
-          aliases=("bus", "bus stop", "train", "station", "transit")),
-    Place("DORM", "Residence Village", 110, 135, 140, 95,
-          aliases=("dorm", "dorms", "hostel", "residence", "halls", "student housing")),
-    Place("STADIUM", "Riverside Stadium", 350, 130, 200, 130,
-          aliases=("stadium", "arena", "gym", "sports")),
-    Place("COURT", "The Quad", 380, 295, 75, 55, kind="open",
-          aliases=("quad", "courtyard", "green")),
-    Place("LIBRARY", "Main Library", 580, 135, 180, 125, level="L2",
-          aliases=("library", "lib", "books", "reading room", "study")),
-    Place("SCIENCE", "Science Centre", 840, 135, 190, 130, level="L2",
-          aliases=("science", "sci", "labs", "laboratory", "chemistry")),
+    Place("GATE1", "Main Gate 1", 110, 545, 130, 80,
+          aliases=("gate 1", "main gate", "entrance", "entry", "front gate")),
+    Place("GATE2", "Gate 2 (Side Entry)", 105, 335, 120, 70,
+          aliases=("gate 2", "back gate", "side gate")),
+    Place("HOSTELS", "Hostel Complex (H1-H4)", 110, 135, 140, 95,
+          aliases=("hostel", "hostels", "h1", "h2", "h3", "h4", "residence")),
+    Place("SPORTS", "Sports Complex & Ground", 350, 130, 200, 130,
+          aliases=("sports", "ground", "basketball court", "badminton")),
+    Place("QUAD", "Central Lawns", 380, 295, 75, 55, kind="open",
+          aliases=("lawns", "green lawn", "quad")),
+    Place("LRC", "Learning Resource Centre (LRC)", 580, 135, 180, 125, level="L2",
+          aliases=("lrc", "library", "books", "reading hall")),
+    Place("ABB1", "ABB I (Academic Block B1)", 840, 135, 190, 130, level="L2",
+          aliases=("abb1", "abb 1", "academic block 1", "cs labs")),
     Place("PLAZA", "Central Plaza", 575, 240, 110, 70, kind="open",
-          aliases=("plaza", "square", "fountain")),
-    Place("CAFETERIA", "Cafeteria", 265, 360, 145, 100,
-          aliases=("cafeteria", "cafe", "caf", "food court", "dining", "canteen", "refectory")),
-    Place("UNION", "Student Union", 575, 345, 190, 130,
-          aliases=("union", "student union", "su", "hub")),
-    Place("HEALTH", "Health Centre", 855, 345, 150, 105,
-          aliases=("health", "clinic", "infirmary", "medical", "nurse")),
-    Place("ENGINEERING", "Engineering Hall", 345, 530, 190, 120, level="L2",
-          aliases=("engineering", "eng", "eng hall", "tech", "engineering hall")),
-    Place("ADMIN", "Admin Building", 630, 530, 175, 115, level="L2",
-          aliases=("admin", "administration", "registry", "registrar", "office")),
-    Place("GREEN", "Campus Green", 855, 530, 130, 90, kind="green",
-          aliases=("green", "park", "lawn", "garden")),
+          aliases=("plaza", "amphitheatre", "fountain")),
+    Place("ANNAPURNA", "Annapurna (Cafeteria)", 265, 360, 145, 100,
+          aliases=("annapurna", "canteen", "cafeteria", "dining", "food court")),
+    Place("ABB2", "ABB II (Academic Block B2)", 575, 345, 190, 130,
+          aliases=("abb2", "abb 2", "academic block 2", "ece labs")),
+    Place("DISPENSARY", "Medical Dispensary", 855, 345, 150, 105,
+          aliases=("dispensary", "clinic", "health", "infirmary", "medical")),
+    Place("JBS", "Jaypee Business School (JBS)", 345, 530, 190, 120, level="L2",
+          aliases=("jbs", "business school", "management")),
+    Place("ADMIN", "Administrative Block", 630, 530, 175, 115, level="L2",
+          aliases=("admin", "accounts", "registrar", "office")),
+    Place("GARDEN", "Herbal Garden", 855, 530, 130, 90, kind="green",
+          aliases=("garden", "herbal garden", "park")),
 )
 
 PLACE_BY_ID: dict[str, Place] = {p.id: p for p in PLACES}
@@ -205,240 +194,218 @@ PLACE_BY_ID: dict[str, Place] = {p.id: p for p in PLACES}
 
 EDGES: tuple[Edge, ...] = (
     # --- Ground level, level walking ---
-    Edge("e1", "MAIN_GATE", "CAFETERIA",
+    Edge("e1", "GATE1", "ANNAPURNA",
          ((110, 545), (200, 480), (265, 410)),
-         150, True, "concrete paving", 2.4, "Gate forecourt walk",
+         150, True, "concrete paving", 2.4, "Gate 1 Main Pathway",
          gradient_pct=3.0, tactile="guidance", crossings=1,
-         note="Continuous tactile guide strip runs the length of this walk."),
-    Edge("e2", "MAIN_GATE", "ENGINEERING",
+         note="Tactile strip leads from Gate 1 directly towards Annapurna Canteen."),
+    Edge("e2", "GATE1", "JBS",
          ((110, 545), (230, 560), (345, 530)),
-         170, True, "asphalt", 3.0, "South promenade",
+         170, True, "asphalt", 3.0, "JBS Walkway",
          gradient_pct=2.0, tactile="none"),
-    Edge("e3", "MAIN_GATE", "TRANSIT",
+    Edge("e3", "GATE1", "GATE2",
          ((110, 545), (125, 440), (105, 335)),
-         215, True, "asphalt", 2.2, "Arrival drive crossing",
-         gradient_pct=4.0, tactile="warning", crossings=2, lighting="poor",
-         note="Single dropped kerb on the north side only."),
-    Edge("e4", "TRANSIT", "CAFETERIA",
+         215, True, "asphalt", 2.2, "Perimeter Drive",
+         gradient_pct=4.0, tactile="warning", crossings=2, lighting="poor"),
+    Edge("e4", "GATE2", "ANNAPURNA",
          ((105, 335), (185, 348), (265, 360)),
-         175, True, "concrete paving", 2.6, "Transit link",
+         175, True, "concrete paving", 2.6, "Gate 2 Canteen Link",
          gradient_pct=2.0, tactile="none"),
-    Edge("e5", "TRANSIT", "DORM",
+    Edge("e5", "GATE2", "HOSTELS",
          ((105, 335), (85, 235), (110, 135)),
-         205, True, "asphalt", 2.4, "West walk",
+         205, True, "asphalt", 2.4, "Hostel Road",
          gradient_pct=5.0, tactile="none", lighting="poor"),
-    Edge("e6", "DORM", "STADIUM",
+    Edge("e6", "HOSTELS", "SPORTS",
          ((110, 135), (230, 120), (350, 130)),
-         240, True, "asphalt", 3.2, "North promenade",
+         240, True, "asphalt", 3.2, "Sports Walk",
          gradient_pct=2.0, tactile="none"),
-    Edge("e8", "CAFETERIA", "COURT",
+    Edge("e8", "ANNAPURNA", "QUAD",
          ((265, 360), (325, 330), (380, 295)),
-         95, True, "brick pavers", 2.0, "Quad approach",
+         95, True, "brick pavers", 2.0, "Lawn Approach",
          gradient_pct=2.0, tactile="none"),
-    Edge("e9", "CAFETERIA", "UNION",
+    Edge("e9", "ANNAPURNA", "ABB2",
          ((265, 360), (420, 355), (575, 345)),
-         300, True, "concrete paving", 2.8, "Union Walk",
+         300, True, "concrete paving", 2.8, "Academic Walk",
          gradient_pct=1.0, tactile="guidance", crossings=2,
-         note="Tactile guide strip installed during the 2024 resurfacing."),
-    Edge("e10", "COURT", "STADIUM",
+         note="Tactile guide strip leads directly to ABB II main foyer."),
+    Edge("e10", "QUAD", "SPORTS",
          ((380, 295), (368, 215), (350, 130)),
-         170, True, "concrete paving", 2.4, "Stadium ramp",
-         gradient_pct=6.0, tactile="none",
-         note="Long ramped climb, 1:16 average, handrails both sides."),
-    Edge("e11", "COURT", "PLAZA",
+         170, True, "concrete paving", 2.4, "Sports Ground Ramp",
+         gradient_pct=6.0, tactile="none"),
+    Edge("e11", "QUAD", "PLAZA",
          ((380, 295), (470, 265), (575, 240)),
-         275, True, "stone pavers", 3.0, "Plaza approach",
+         275, True, "stone pavers", 3.0, "Central Concourse",
          gradient_pct=3.0, tactile="guidance"),
-    Edge("e12", "STADIUM", "LIBRARY",
+    Edge("e12", "SPORTS", "LRC",
          ((350, 130), (465, 125), (580, 135)),
-         230, True, "concrete paving", 2.6, "Library Walk",
+         230, True, "concrete paving", 2.6, "LRC North Walk",
          gradient_pct=2.0, tactile="warning"),
-    Edge("e13", "LIBRARY", "PLAZA",
+    Edge("e13", "LRC", "PLAZA",
          ((580, 135), (580, 190), (575, 240)),
-         72, True, "tactile pavers", 2.0, "Library South Ramp",
+         72, True, "tactile pavers", 2.0, "LRC Access Ramp",
          gradient_pct=8.0, tactile="guidance",
-         note="Steepest compliant ramp on campus (1:12.5) with a level landing at the top."),
-    Edge("e14", "PLAZA", "SCIENCE",
+         note="Wheelchair ramp connecting Plaza level to LRC main portal."),
+    Edge("e14", "PLAZA", "ABB1",
          ((575, 240), (720, 215), (840, 135)),
-         275, True, "concrete paving", 2.4, "Science Walk",
+         275, True, "concrete paving", 2.4, "ABB I Link",
          gradient_pct=3.0, tactile="guidance"),
-    Edge("e15", "PLAZA", "UNION",
+    Edge("e15", "PLAZA", "ABB2",
          ((575, 240), (575, 300), (575, 345)),
-         140, True, "granite setts", 3.4, "Union Concourse",
+         140, True, "granite setts", 3.4, "ABB II Foyer Approach",
          gradient_pct=2.0, tactile="guidance"),
-    Edge("e16", "SCIENCE", "HEALTH",
+    Edge("e16", "ABB1", "DISPENSARY",
          ((840, 135), (862, 240), (855, 345)),
-         215, True, "asphalt", 2.2, "Health approach",
+         215, True, "asphalt", 2.2, "Dispensary Lane",
          gradient_pct=3.0, tactile="warning", lighting="poor"),
-    Edge("e17", "HEALTH", "ADMIN",
+    Edge("e17", "DISPENSARY", "ADMIN",
          ((855, 345), (830, 440), (760, 510), (630, 530)),
-         340, True, "concrete paving", 2.4, "East perimeter walk",
+         340, True, "concrete paving", 2.4, "Admin East Path",
          gradient_pct=4.0, tactile="none"),
-    Edge("e18", "ADMIN", "GREEN",
+    Edge("e18", "ADMIN", "GARDEN",
          ((630, 530), (740, 560), (855, 530)),
-         240, True, "asphalt", 2.0, "Green walk",
+         240, True, "asphalt", 2.0, "Garden Promenade",
          gradient_pct=3.0, tactile="none"),
-    Edge("e19", "UNION", "HEALTH",
+    Edge("e19", "ABB2", "DISPENSARY",
          ((575, 345), (715, 350), (855, 345)),
          280, True, "concrete paving", 2.6, "Health Link",
          gradient_pct=2.0, tactile="none"),
-    Edge("e21", "UNION", "ADMIN",
+    Edge("e21", "ABB2", "ADMIN",
          ((575, 345), (600, 440), (630, 530)),
          195, True, "concrete paving", 2.0, "Admin Walk",
          gradient_pct=5.0, tactile="none"),
 
     # --- Step-free vertical links (elevators) ---
-    Edge("e24", "UNION", "LIBRARY",
+    Edge("e24", "ABB2", "LRC",
          ((460, 175), (460, 215)),
-         40, True, "elevator", 1.1, "Union–Library Elevator (L1↔L2)",
+         40, True, "elevator", 1.1, "ABB II–LRC Central Elevator (L1↔L2)",
          gradient_pct=0.0, style="elevator",
-         note="Car 1.4 m × 1.6 m, 1100 kg, braille and audible floor announcements."),
-    Edge("e26", "UNION", "SCIENCE",
+         note="Car 1.4 m × 1.6 m, braille buttons and voice floor announcements."),
+    Edge("e26", "ABB2", "ABB1",
          ((695, 210), (695, 250)),
-         45, True, "elevator", 1.1, "Union–Science Elevator (L1↔L2)",
+         45, True, "elevator", 1.1, "ABB I North Elevator (L1↔L2)",
          gradient_pct=0.0, style="elevator",
-         note="Car 1.1 m × 1.4 m, 1000 kg. Hold-open button on the L1 landing."),
+         note="Elevator serving CS & IT laboratories on upper floors."),
 
     # --- Stairs only, no step-free alternative ---
-    Edge("e7", "DORM", "COURT",
+    Edge("e7", "HOSTELS", "QUAD",
          ((110, 135), (150, 220), (300, 285), (380, 295)),
-         320, False, "steps (14 risers)", 1.2, "Dormitory Steps to the Quad",
+         320, False, "steps (14 risers)", 1.2, "Hostel Direct Staircase to Quad",
          style="stairs", hazard="stairs", tactile="none",
-         note="No ramp or lift alternative. Handrail on one side only."),
-    Edge("e20", "ENGINEERING", "COURT",
+         note="Stairs without ramp option. Wheelchair users follow Gate 2 road."),
+    Edge("e20", "JBS", "QUAD",
          ((345, 530), (368, 420), (380, 295)),
-         230, False, "steps (22 risers)", 1.2, "Engineering Stair to the Quad",
+         230, False, "steps (22 risers)", 1.2, "JBS Lawns Staircase",
          style="stairs", hazard="stairs", tactile="none"),
-    Edge("e23", "LIBRARY", "SCIENCE",
+    Edge("e23", "LRC", "ABB1",
          ((580, 135), (710, 120), (840, 135)),
-         260, False, "steps (18 risers)", 1.5, "North Interconnecting Stair",
+         260, False, "steps (18 risers)", 1.5, "LRC to ABB I Bridge Staircase",
          style="stairs", hazard="stairs", tactile="none"),
-    Edge("e28", "UNION", "LIBRARY",
+    Edge("e28", "ABB2", "LRC",
          ((498, 225), (516, 262)),
-         35, False, "steps (11 risers)", 1.2, "Union–Library Stair",
-         style="stairs", hazard="stairs", tactile="none",
-         note="Short but steep; no handrail on the upper flight."),
-    Edge("e29", "UNION", "SCIENCE",
+         35, False, "steps (11 risers)", 1.2, "ABB II Outer Steps to LRC",
+         style="stairs", hazard="stairs", tactile="none"),
+    Edge("e29", "ABB2", "ABB1",
          ((762, 220), (778, 258)),
-         38, False, "steps (9 risers)", 1.2, "Union–Science Stair",
+         38, False, "steps (9 risers)", 1.2, "ABB Interconnecting Steps",
          style="stairs", hazard="stairs", tactile="none"),
 
     # --- Closed for construction ---
-    Edge("e22", "CAFETERIA", "ENGINEERING",
+    Edge("e22", "ANNAPURNA", "JBS",
          ((265, 360), (300, 440), (345, 530)),
-         200, True, "brick pavers", 1.8, "Cafeteria–Engineering Walk",
+         200, True, "brick pavers", 1.8, "Annapurna–JBS Covered Walkway",
          gradient_pct=4.0, style="construction", closed=True,
          hazard="construction", tactile="none", lighting="poor",
-         note="Closed for utility works. Signed detour via the Union concourse."),
+         note="Closed for underground maintenance. Detour via ABB II foyer."),
 )
 
 EDGE_BY_ID: dict[str, Edge] = {e.id: e for e in EDGES}
 
 # --------------------------------------------------------------------------
-# Features (map pins)
+# Features (map pins for JIIT Sector 62)
 # --------------------------------------------------------------------------
 
 FEATURES: tuple[Feature, ...] = (
     # Accessible paths / ramps
-    Feature("R1", "path", "East Gate Ramp", 200, 480,
-            description="1:14 ramp with twin handrails and a level landing; "
-                        "replaces the 14-step entrance that used to face the gate.",
+    Feature("R1", "path", "Gate 1 Entrance Ramp", 200, 480,
+            description="1:14 gentle ramp with continuous handrails at JIIT Gate 1.",
             edge_ids=("e1",),
             attrs={"Gradient": "1:14 (7.1%)", "Clear width": "1.8 m",
                    "Handrails": "Both sides", "Resting points": "1"}),
-    Feature("R2", "path", "Library South Ramp", 580, 215,
+    Feature("R2", "path", "LRC Main Entrance Ramp", 580, 215,
             level="L2",
-            description="Steepest compliant ramp on campus. Follow the tactile "
-                        "guide strip up to the library's L2 entrance.",
+            description="Step-free wheelchair ramp leading into Learning Resource Centre.",
             edge_ids=("e13",),
             attrs={"Gradient": "1:12.5 (8.0%)", "Clear width": "2.0 m",
                    "Handrails": "Both sides", "Resting points": "1 (top)"}),
-    Feature("R3", "path", "Engineering North Ramp", 230, 560,
+    Feature("R3", "path", "JBS North Ramp", 230, 560,
             level="L2",
-            description="Step-free entrance to Engineering Hall from the south "
-                        "promenade, bypassing the closed stair core.",
+            description="Step-free entry to Jaypee Business School ground floor.",
             edge_ids=("e2",),
             attrs={"Gradient": "1:20 (5.0%)", "Clear width": "2.4 m",
                    "Handrails": "One side", "Intercom": "Yes"}),
 
     # Elevators
-    Feature("E1", "elevator", "Union–Library Elevator", 460, 195, level="L1/L2",
-            description="Passenger lift inside the Union core. Connects the "
-                        "concourse to the library's L2 reading level.",
+    Feature("E1", "elevator", "ABB II Central Elevator", 460, 195, level="L1/L2",
+            description="Main passenger lift in ABB II connecting ground floor to upper lecture halls and LRC.",
             edge_ids=("e24",),
             attrs={"Car size": "1.4 m × 1.6 m", "Capacity": "1100 kg / 13 persons",
                    "Announcements": "Braille + audible", "Outages": "None recorded"}),
-    Feature("E2", "elevator", "Union–Science Elevator", 695, 230, level="L1/L2",
-            description="Lift to the Science Centre L2 teaching labs. "
-                        "Narrowest car on campus — check your chair width.",
+    Feature("E2", "elevator", "ABB I North Elevator", 695, 230, level="L1/L2",
+            description="Elevator serving CS & IT Computer Labs in ABB I.",
             edge_ids=("e26",),
             attrs={"Car size": "1.1 m × 1.4 m", "Capacity": "1000 kg / 10 persons",
                    "Announcements": "Braille + audible", "Hold-open": "L1 landing"}),
 
     # Tactile paving
-    Feature("T1", "tactile", "Tactile guide strip: Gate → Union", 420, 355,
-            description="Continuous directional tactile strip installed in the "
-                        "2024 resurfacing. Follow the corduroy ribs north-east.",
+    Feature("T1", "tactile", "Tactile strip: Gate 1 → ABB II", 420, 355,
+            description="Directional guidance tiles installed from Gate 1 entrance to Academic Block II.",
             edge_ids=("e9",),
             attrs={"Type": "Directional (truncated domes)",
-                   "Colour": "Buff on grey", "Length": "300 m",
-                   "Interruptions": "2 crossings"}),
-    Feature("T2", "tactile", "Tactile warning surface: Library Walk", 465, 125,
-            level="L2",
-            description="Hazard warning tiles mark the raised crossing between "
-                        "the stadium and library approaches.",
-            edge_ids=("e12",),
-            attrs={"Type": "Hazard warning (domed)",
-                   "Colour": "Yellow", "Width": "600 mm", "Crossings": "1"}),
+                   "Colour": "Yellow on concrete", "Length": "300 m",
+                   "Interruptions": "1 crossing"}),
 
     # Accessible restrooms
-    Feature("A1", "restroom", "All-gender accessible restroom, Union", 620, 385,
-            description="Left-hand cubicle on the L1 concourse. Alarm pull cord "
-                        "plus a vibrating pad option.",
+    Feature("A1", "restroom", "Accessible Restroom, ABB II Ground Floor", 620, 385,
+            description="Wheelchair accessible restroom near ABB II main reception with emergency alarm.",
             edge_ids=("e15",),
             attrs={"Door clear width": "950 mm", "Turning circle": "1500 mm",
-                   "Grab rails": "Both sides + drop-down", "Alarm": "Pull cord + pad"}),
-    Feature("A2", "restroom", "Accessible restroom, Science L2", 880, 155, level="L2",
-            description="Cubicle beside the L2 labs. Keypad entry — code held at "
-                        "the porters' desk.",
+                   "Grab rails": "Both sides", "Alarm": "Pull cord"}),
+    Feature("A2", "restroom", "Accessible Restroom, LRC L2", 880, 155, level="L2",
+            description="Accessible cubicle on LRC second level beside the digital library.",
             edge_ids=("e26",),
             attrs={"Door clear width": "900 mm", "Turning circle": "1500 mm",
                    "Grab rails": "Both sides", "Entry": "Keypad"}),
 
-    # Accessible bays / drop-off
-    Feature("P1", "parking", "Accessible drop-off, Main Gate", 150, 570,
-            description="Kerbside boarding bay with a 1.5 m transfer side and "
-                        "a dropped kerb. 3-minute time limit enforced.",
+    # Accessible drop-off
+    Feature("P1", "parking", "Accessible Drop-off Bay, Gate 1", 150, 570,
+            description="Dedicated drop-off zone with dropped kerb right at Gate 1.",
             edge_ids=("e2",),
             attrs={"Transfer side": "Kerb (left)", "Clear length": "6.0 m",
-                   "Time limit": "3 minutes", "Shelter": "Yes"}),
+                   "Time limit": "5 minutes", "Shelter": "Yes"}),
 
     # Hazards
-    Feature("H1", "hazard", "Stairs: Residence Village → Quad", 150, 220,
-            status="closed", category="stairs", reported_by="Access Panel",
-            updated="Reported 4 days ago",
-            description="14 risers with a handrail on one side only and no ramp "
-                        "or lift alternative. Not navigable in a wheelchair.",
+    Feature("H1", "hazard", "Stairs: Hostel Road to Central Lawns", 150, 220,
+            status="closed", category="stairs", reported_by="JIIT Access Panel",
+            updated="Reported 2 days ago",
+            description="14 steep steps without a ramp alternative. Barrier for wheelchair users.",
             edge_ids=("e7",),
             attrs={"Risers": "14", "Handrail": "One side only",
-                   "Alternative": "None", "Severity": "Barrier"}),
-    Feature("H2", "hazard", "Construction: Cafeteria–Engineering closed", 300, 440,
-            status="closed", category="construction", reported_by="Estates Office",
-            updated="Reported 2 days ago",
-            description="Utility works narrow the walk to 900 mm and the "
-                        "gradient to 9%. Signed detour via the Union concourse.",
+                   "Alternative": "Use Gate 2 road detour", "Severity": "Barrier"}),
+    Feature("H2", "hazard", "Maintenance: Annapurna to JBS Walkway", 300, 440,
+            status="closed", category="construction", reported_by="Estate Office",
+            updated="Reported yesterday",
+            description="Underground pipe repair blocks the pathway. Detour signed via ABB II foyer.",
             edge_ids=("e22",),
-            attrs={"Clear width": "0.9 m (was 1.8 m)", "Gradient": "9% (was 4%)",
-                   "Detour": "+180 m via Student Union", "Expected": "3 weeks"}),
-    Feature("H3", "hazard", "Tactile paving missing: Health approach", 862, 240,
-            status="caution", category="maintenance", reported_by="Walkability Audit",
-            updated="Reported 1 week ago",
-            description="The warning tiles before the Health Centre crossing were "
-                        "removed during resurfacing and not reinstated.",
+            attrs={"Clear width": "0.8 m", "Gradient": "8%",
+                   "Detour": "+150 m via ABB II", "Expected": "4 days"}),
+    Feature("H3", "hazard", "Damaged Tactile Paving: Dispensary Approach", 862, 240,
+            status="caution", category="maintenance", reported_by="Student Report",
+            updated="Reported 3 days ago",
+            description="Loose tiles near the Dispensary entry. Exercise caution in low light.",
             edge_ids=("e16",),
-            attrs={"Missing": "Hazard warning tiles, ~6 m",
-                   "Crossing": "Uncontrolled", "Lighting": "Poor after dusk",
-                   "Alternative": "Use the Health Link via Union"}),
+            attrs={"Missing": "Hazard tiles ~4 m",
+                   "Lighting": "Poor after dusk",
+                   "Alternative": "Use Health Link via ABB II"}),
 )
 
 FEATURE_BY_ID: dict[str, Feature] = {f.id: f for f in FEATURES}

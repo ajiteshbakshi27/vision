@@ -1,0 +1,10 @@
+# --- Core UI ---
+streamlit>=1.40.0
+
+# --- Google AI Studio (Gemini) ---
+google-genai>=1.0.0        # current official SDK
+google-generativeai>=0.8.5 # legacy SDK, used as a fallback client
+
+# --- Config & image handling ---
+python-dotenv>=1.0.1
+Pillow>=10.4.0

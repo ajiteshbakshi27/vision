@@ -33,7 +33,7 @@ MODEL_CHOICES = [
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
 ]
-DEFAULT_MODEL = os.getenv("DEFAULT_GEMINI_MODEL", "gemini-2.5-flash")
+DEFAULT_MODEL = os.getenv("DEFAULT_GEMINI_MODEL", "gemini-3.8-flash")
 if DEFAULT_MODEL not in MODEL_CHOICES:
     MODEL_CHOICES.insert(0, DEFAULT_MODEL)
 

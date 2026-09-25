@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Campus accessibility map</title>
+<style>
+  :root {
+    --bg: #EEF3F2;
+    --ink: #12211F;
+    --muted: #4E6462;
+    --line: #C9D8D5;
+    --building: #FFFFFF;
+    --building-2: #EAF1EF;
+    --route: #7C3AED;
+    --shadow: 0 1px 2px rgba(18,33,31,.10);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+  #wrap { position: relative; width: 100%; }
+  #map { display: block; width: 100%; height: 560px; border-radius: 12px; cursor: grab; }
+  #map.dragging { cursor: grabbing; }
+
+  /* --- Toolbar --- */
+  #tools {
+    position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 5;
+  }
+  #tools button {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line);
+    background: rgba(255,255,255,.94); color: var(--ink); font-size: 16px; font-weight: 700;
+    cursor: pointer; box-shadow: var(--shadow); line-height: 1;
+    display: grid; place-items: center; padding: 0;
+  }
+  #tools button:hover { background: #fff; border-color: #0F766E; }
+  #tools button:focus-visible { outline: 3px solid #0F766E; outline-offset: 2px; }
+
+  /* --- Tooltip --- */
+  #tip {
+    position: absolute; z-index: 10; max-width: 280px; pointer-events: none;
+    background: rgba(18,33,31,.96); color: #fff; border-radius: 9px; padding: 9px 12px;
+    font-size: 12.5px; line-height: 1.45; box-shadow: 0 8px 24px rgba(0,0,0,.24);
+    opacity: 0; transition: opacity .12s ease;
+  }
+  #tip.on { opacity: 1; }
+  #tip b { display: block; font-size: 13px; margin-bottom: 2px; }
+  #tip span { color: rgba(255,255,255,.82); }
+
+  #live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  #fallback {
+    display: none; padding: 28px 22px; text-align: center; color: var(--muted);
+    font-size: 14px; line-height: 1.6;
+  }
+
+  /* --- SVG pieces --- */
+  .bldg  { fill: var(--building); stroke: #A8BEBA; stroke-width: 1.6; }
+  .bldg2 { fill: var(--building-2); stroke: #A8BEBA; stroke-width: 1.6; }
+  .open- { fill: #EAF1EF; stroke: #B4C9C5; stroke-width: 1.4; stroke-dasharray: 5 4; }
+  .green{ fill: #DCEEDF; stroke: #A9CDAF; stroke-width: 1.4; }
+  .bname { font-size: 11.5px; font-weight: 650; fill: #213733; text-anchor: middle;
+           pointer-events: none; paint-order: stroke; stroke: rgba(255,255,255,.9); stroke-width: 3px;
+           stroke-linejoin: round; }
+  .bsub  { font-size: 9px; fill: #5A716D; text-anchor: middle; pointer-events: none;
+           paint-order: stroke; stroke: rgba(255,255,255,.9); stroke-width: 3px; }
+  .elabel{ font-size: 8.5px; fill: #7A918D; text-anchor: middle; pointer-events: none; letter-spacing: .04em; }
+
+  .edge  { fill: none; stroke: #7FA39E; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+  .edge-hit { fill: none; stroke: transparent; stroke-width: 16; cursor: pointer; }
+  .edge-g:hover + .edge-hit, .edge-hit:hover { stroke: rgba(15,118,110,.12); }
+  .edge-hazard { fill: none; stroke: #DC2626; stroke-width: 4.5; stroke-dasharray: 9 6; stroke-linecap: round; }
+  .edge-closed  { fill: none; stroke: #DC2626; stroke-width: 4.5; stroke-dasharray: 2 7; stroke-linecap: round; }
+  .edge-stairs  { fill: none; stroke: #B91C1C; stroke-width: 3.2; stroke-linejoin: round; }
+  .edge-lift    { fill: none; stroke: #1D4ED8; stroke-width: 3; stroke-dasharray: 7 5; }
+  .lift-car     { fill: #DBEAFE; stroke: #1D4ED8; stroke-width: 1.6; }
+  .lift-arrow   { fill: #1D4ED8; }
+  .lift-tag     { font-size: 8px; font-weight: 700; fill: #1D4ED8; text-anchor: middle; pointer-events: none; }
+
+  .route-under { fill: none; stroke: rgba(124,58,237,.28); stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
+  .route-over  { fill: none; stroke: var(--route); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+
+  .pin { cursor: pointer; }
+  .pin .halo { fill: rgba(255,255,255,.0); }
+  .pin .body { stroke: #fff; stroke-width: 2.4; }
+  .pin .glyph { fill: #fff; text-anchor: middle; dominant-baseline: central; font-weight: 800; pointer-events: none; }
+  .pin.sel .ring { fill: none; stroke-width: 3; }
+  .pin:hover .body { stroke-width: 3.2; }
+  .pin:focus { outline: none; }
+  .pin:focus-visible .body { stroke: #0F766E; stroke-width: 4; }
+  .pin .ring { fill: none; opacity: 0; }
+  .pin.sel .ring { opacity: 1; }
+  .pin.sel .body { stroke: #0F766E; stroke-width: 3.4; }
+
+  .endcap { stroke: #fff; stroke-width: 2.5; }
+  .endlabel { font-size: 10px; font-weight: 800; fill: #fff; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
+  /* --- Dark mode (Streamlit theme) --- */
+  body.uata-dark {
+    --bg: #101716; --ink: #EAF3F1; --muted: #A8BDBA; --line: #334744;
+    --building: #1B2523; --building-2: #222E2B;
+  }
+  body.uata-dark .bldg, body.uata-dark .bldg2, body.uata-dark .open-, body.uata-dark .green { stroke: #4A605C; }
+  body.uata-dark .bname { fill: #EAF3F1; }
+  body.uata-dark .bsub, body.uata-dark .elabel { fill: #A8BDBA; }
+  body.uata-dark .edge { stroke: #6E8E89; }
+  body.uata-dark .lift-car { fill: #1E3A8A; stroke: #93C5FD; }
+  body.uata-dark .lift-arrow, body.uata-dark .lift-tag { fill: #93C5FD; }
+  body.uata-dark #tools button { background: #1B2523; color: #EAF3F1; border-color: #4A605C; }
+  body.uata-dark #tip { background: rgba(234,243,241,.97); color: #101716; }
+  body.uata-dark #tip span { color: #3D524F; }
+
+  /* --- Contrast mode --- */
+  body.contrast {
+    --bg: #FFFFFF; --ink: #000000; --muted: #000000; --line: #000000;
+    --building: #FFFFFF; --building-2: #F2F2F2; --route: #4B0FA6;
+  }
+  body.contrast .bldg, body.contrast .bldg2, body.contrast .open-, body.contrast .green { stroke-width: 2.6; }
+  body.contrast .bname, body.contrast .bsub, body.contrast .elabel { fill: #000000; }
+  body.contrast .edge { stroke: #1A1A1A; stroke-width: 7; }
+  body.contrast .pin .body { stroke: #000000; stroke-width: 3; }
+  body.contrast #tools button { border: 2px solid #000000; }
+
+  /* --- Fallback (shim failed to load) --- */
+  body.broken #wrap { display: none; }
+  body.broken #fallback { display: block; }
+</style>
+</head>
+<body>
+  <div id="wrap">
+    <svg id="map" viewBox="0 0 1000 640" preserveAspectRatio="xMidYMid meet"
+         role="application" aria-label="Interactive campus accessibility map. Use the accessible feature list below the map for a keyboard and screen-reader equivalent.">
+      <defs>
+        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#DDE7E5" stroke-width="1" />
+        </pattern>
+        <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="8" height="8" fill="#FEF2F2" />
+          <line x1="0" y1="0" x2="0" y2="8" stroke="#FCA5A5" stroke-width="3" />
+        </pattern>
+      </defs>
+      <rect x="0" y="0" width="1000" height="640" fill="url(#grid)" />
+      <g id="scene"></g>
+    </svg>
+
+    <div id="tools">
+      <button type="button" id="zin"  title="Zoom in"  aria-label="Zoom in">+</button>
+      <button type="button" id="zout" title="Zoom out" aria-label="Zoom out">&minus;</button>
+      <button type="button" id="zfit" title="Reset view" aria-label="Reset map view">&#8634;</button>
+    </div>
+
+    <div id="tip" role="status" aria-live="polite"></div>
+    <div id="live" aria-live="polite"></div>
+  </div>
+  <div id="fallback">
+    The interactive map could not load its JavaScript runtime.<br />
+    The accessible feature list below the map still works fully.
+  </div>
+
+<script src="streamlit-shim.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  if (!window.Streamlit || !window.Streamlit.setComponentReady) {
+    document.body.classList.add("broken");
+    return;
+  }
+
+  var scene      = document.getElementById("scene");
+  var svg        = document.getElementById("map");
+  var tip        = document.getElementById("tip");
+  var live       = document.getElementById("live");
+  var wrap       = document.getElementById("wrap");
+  var state      = { k: 1, x: 0, y: 0 };
+  var lastArgs   = null;
+  var dragging   = false;
+  var dragStart  = null;
+  var VB_W = 1000, VB_H = 640;
+
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function el(name, attrs) {
+    var node = document.createElementNS(SVGNS, name);
+    for (var key in attrs) {
+      if (attrs[key] !== null && attrs[key] !== undefined) {
+        node.setAttribute(key, String(attrs[key]));
+      }
+    }
+    return node;
+  }
+
+  function send(value) {
+    if (window.Streamlit && window.Streamlit.setComponentValue) {
+      window.Streamlit.setComponentValue(value);
+    }
+  }
+
+  function announce(text) {
+    live.textContent = text;
+  }
+
+  /* ------------------------------ geometry ------------------------------ */
+
+  function polyD(pts) {
+    var d = "";
+    for (var i = 0; i < pts.length; i++) {
+      d += (i ? "L" : "M") + pts[i][0] + " " + pts[i][1] + " ";
+    }
+    return d.trim();
+  }
+
+  function stairsPath(a, b, count) {
+    count = count || 4;
+    var dx = b[0] - a[0], dy = b[1] - a[1];
+    var vertical = Math.abs(dy) >= Math.abs(dx);
+    var d = "M " + a[0] + " " + a[1];
+    for (var i = 0; i < count; i++) {
+      var t0 = i / count, t1 = (i + 1) / count;
+      var x0 = a[0] + dx * t0, y0 = a[1] + dy * t0;
+      var x1 = a[0] + dx * t1, y1 = a[1] + dy * t1;
+      if (vertical) { d += " L " + x0 + " " + y0 + " L " + x1 + " " + y0 + " L " + x1 + " " + y1; }
+      else          { d += " L " + x0 + " " + y0 + " L " + x0 + " " + y1 + " L " + x1 + " " + y1; }
+    }
+    return d;
+  }
+
+  function edgeMid(edge) {
+    var pts = edge.points;
+    if (edge.style === "stairs") {
+      return [(pts[0][0] + pts[pts.length - 1][0]) / 2, (pts[0][1] + pts[pts.length - 1][1]) / 2];
+    }
+    // Longest segment midpoint, so labels never sit on a corner.
+    var best = 0, bestLen = -1;
+    for (var i = 0; i < pts.length - 1; i++) {
+      var len = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+      if (len > bestLen) { bestLen = len; best = i; }
+    }
+    return [(pts[best][0] + pts[best + 1][0]) / 2, (pts[best][1] + pts[best + 1][1]) / 2];
+  }
+
+  /* ------------------------------ tooltip ------------------------------- */
+
+  function showTip(evt, title, body) {
+    var box = wrap.getBoundingClientRect();
+    var x = evt.clientX !== undefined && evt.clientX !== 0 ? evt.clientX - box.left : box.width / 2;
+    var y = evt.clientY !== undefined && evt.clientY !== 0 ? evt.clientY - box.top : 40;
+    tip.innerHTML = "<b>" + title + "</b>" + (body ? "<span>" + body + "</span>" : "");
+    tip.classList.add("on");
+    var tw = tip.offsetWidth, th = tip.offsetHeight;
+    var left = Math.min(Math.max(6, x + 16), box.width - tw - 6);
+    var top  = y - th - 14;
+    if (top < 4) { top = y + 20; }
+    tip.style.left = left + "px";
+    tip.style.top  = top + "px";
+  }
+  function hideTip() { tip.classList.remove("on"); }
+
+  function toScreen(evt, cx, cy) {
+    var box = svg.getBoundingClientRect();
+    var scale = Math.min(box.width / VB_W, box.height / VB_H);
+    var offX = (box.width  - VB_W * scale) / 2;
+    var offY = (box.height - VB_H * scale) / 2;
+    return {
+      x: offX + (cx * state.k + state.x) * scale,
+      y: offY + (cy * state.k + state.y) * scale
+    };
+  }
+
+  /* ------------------------------ render -------------------------------- */
+
+  function render(args) {
+    lastArgs = args;
+    document.body.classList.toggle("contrast", !!args.contrast);
+
+    var places  = args.places  || [];
+    var edges   = args.edges   || [];
+    var feats   = args.features || [];
+    var route   = args.route   || [];
+    var sel     = args.selected;
+
+    scene.textContent = "";
+
+    var gBase = el("g", { id: "g-base" });
+    var gEdge = el("g", { id: "g-edge" });
+    var gRout = el("g", { id: "g-route" });
+    var gPin  = el("g", { id: "g-pin" });
+    gBase.setAttribute("transform", "translate(" + state.x + "," + state.y + ") scale(" + state.k + ")");
+    gEdge.setAttribute("transform", "translate(" + state.x + "," + state.y + ") scale(" + state.k + ")");
+    gRout.setAttribute("transform", "translate(" + state.x + "," + state.y + ") scale(" + state.k + ")");
+    gPin .setAttribute("transform", "translate(" + state.x + "," + state.y + ") scale(" + state.k + ")");
+
+    /* places */
+    places.forEach(function (p) {
+      var isOpen = p.kind === "open", isGreen = p.kind === "green";
+      var rect = el("rect", {
+        x: p.x - p.w / 2, y: p.y - p.h / 2, width: p.w, height: p.h, rx: 12,
+        class: isOpen ? "open-" : (isGreen ? "green" : "bldg")
+      });
+      gBase.appendChild(rect);
+
+      if (isGreen || isOpen) {
+        // soft fill marks these as landscape, not a destination doorway
+        rect.setAttribute("opacity", "0.9");
+      }
+
+      var lines = wrapName(p.name, Math.max(8, Math.floor(p.w / 7.4)));
+      var blockHeight = lines.length * 13 + (p.level && p.level !== "L1" ? 10 : 0);
+      var ty = p.y - blockHeight / 2 + 4;
+      lines.forEach(function (line) {
+        var t = el("text", { x: p.x, y: ty, class: "bname" });
+        t.textContent = line;
+        gBase.appendChild(t);
+        ty += 13;
+      });
+      if (p.level && p.level !== "L1") {
+        var sub = el("text", { x: p.x, y: ty, class: "bsub" });
+        sub.textContent = "Level " + p.level;
+        gBase.appendChild(sub);
+      }
+    });
+
+    /* edges */
+    edges.forEach(function (e) {
+      var visual, hit, d;
+
+      if (e.style === "stairs") {
+        d = stairsPath(e.points[0], e.points[e.points.length - 1], 4);
+        visual = el("path", { d: d, class: "edge-stairs" });
+        hit    = el("path", { d: d, class: "edge-hit" });
+      } else if (e.style === "elevator") {
+        d = polyD(e.points);
+        var mid = edgeMid(e);
+        visual = el("path", { d: d, class: "edge-lift" });
+        hit    = el("path", { d: d, class: "edge-hit" });
+        gEdge.appendChild(el("rect", { x: mid[0] - 11, y: mid[1] - 15, width: 22, height: 30, rx: 4, class: "lift-car" }));
+        gEdge.appendChild(el("path", { d: "M " + mid[0] + " " + (mid[1] - 21) + " l -5 7 h 10 z", class: "lift-arrow" }));
+        gEdge.appendChild(el("path", { d: "M " + mid[0] + " " + (mid[1] + 21) + " l -5 -7 h 10 z", class: "lift-arrow" }));
+        var tag = el("text", { x: mid[0], y: mid[1] + 1, class: "lift-tag" });
+        tag.textContent = "LIFT";
+        gEdge.appendChild(tag);
+      } else {
+        d = polyD(e.points);
+        visual = el("path", { d: d, class: e.style === "construction" ? "edge-closed" : "edge" });
+        hit    = el("path", { d: d, class: "edge-hit" });
+        if (e.style === "construction") {
+          gEdge.appendChild(el("path", { d: d, class: "edge-closed" }));
+          gEdge.appendChild(el("path", { d: d, fill: "url(#hatch)", stroke: "none" }));
+        }
+      }
+
+      gEdge.appendChild(visual);
+      gEdge.appendChild(hit);
+      attachEdge(hit, e);
+    });
+
+    /* route highlight */
+    route.forEach(function (edgeId) {
+      var e = null;
+      for (var i = 0; i < edges.length; i++) { if (edges[i].id === edgeId) { e = edges[i]; break; } }
+      if (!e) { return; }
+      var d = e.style === "stairs"
+        ? stairsPath(e.points[0], e.points[e.points.length - 1], 4)
+        : polyD(e.points);
+      gRout.appendChild(el("path", { d: d, class: "route-under" }));
+      gRout.appendChild(el("path", { d: d, class: "route-over" }));
+    });
+
+    /* origin / destination caps */
+    if (args.origin)      { gRout.appendChild(endcap(args.origin.x, args.origin.y, "#0F766E", "A")); }
+    if (args.destination) { gRout.appendChild(endcap(args.destination.x, args.destination.y, "#7C3AED", "B")); }
+
+    /* pins */
+    feats.forEach(function (f) {
+      var meta = f.meta || {};
+      var colour = meta.color || "#0F766E";
+      var glyph  = meta.glyph  || "?";
+      var g = el("g", { class: "pin" + (sel === f.id ? " sel" : ""), tabindex: "0",
+                        role: "button", transform: "translate(" + f.x + "," + f.y + ")" });
+      g.setAttribute("aria-label", f.name + ", " + (meta.label || "feature") + ", " +
+                                  (f.status || "open").replace("closed", "closed"));
+      g.appendChild(el("circle", { cx: 0, cy: 0, r: 19, class: "ring", stroke: colour }));
+      g.appendChild(el("circle", { cx: 0, cy: 0, r: 14, class: "body", fill: colour }));
+      var t = el("text", { x: 0, y: 1, class: "glyph", "font-size": glyph.length > 1 ? 8.5 : 13 });
+      t.textContent = glyph;
+      g.appendChild(t);
+
+      g.addEventListener("mouseenter", function (ev) { showTip(ev, f.name, (meta.description || "")); });
+      g.addEventListener("mouseleave", hideTip);
+      g.addEventListener("focus", function (ev) {
+        var s = toScreen(ev, f.x, f.y);
+        showTip({ clientX: s.x, clientY: s.y }, f.name, meta.description || "");
+      });
+      g.addEventListener("blur", hideTip);
+      g.addEventListener("click", function () {
+        hideTip();
+        announce(f.name + " selected.");
+        send({ type: "feature", id: f.id, ts: Date.now() });
+      });
+      g.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" || ev.key === " " || ev.key === "Spacebar") {
+          ev.preventDefault();
+          announce(f.name + " selected.");
+          send({ type: "feature", id: f.id, ts: Date.now() });
+        }
+      });
+      gPin.appendChild(g);
+    });
+
+    scene.appendChild(gBase);
+    scene.appendChild(gEdge);
+    scene.appendChild(gRout);
+    scene.appendChild(gPin);
+
+    fitHeight();
+  }
+
+  function endcap(x, y, colour, letter) {
+    var g = el("g", {});
+    g.appendChild(el("circle", { cx: x, cy: y, r: 15, fill: colour, class: "endcap" }));
+    var t = el("text", { x: x, y: y + 1, class: "endlabel" });
+    t.textContent = letter;
+    g.appendChild(t);
+    return g;
+  }
+
+  function attachEdge(hit, e) {
+    hit.addEventListener("mouseenter", function (ev) {
+      showTip(ev, e.name, describeEdge(e));
+    });
+    hit.addEventListener("mouseleave", hideTip);
+    hit.addEventListener("click", function () {
+      hideTip();
+      announce(e.name + " selected.");
+      send({ type: "edge", id: e.id, ts: Date.now() });
+    });
+  }
+
+  function describeEdge(e) {
+    if (e.style === "stairs")      { return "Stairs only — " + e.surface; }
+    if (e.style === "elevator")    { return "Elevator — " + e.surface; }
+    if (e.style === "construction"){ return "CLOSED — " + (e.note || "construction"); }
+    return e.length_m + " m · " + e.surface + " · " + e.width_m + " m wide" +
+           (e.gradient_pct !== null ? " · " + e.gradient_pct + "% slope" : "");
+  }
+
+  function wrapName(name, perLine) {
+    var words = name.split(" ");
+    var lines = [], current = "";
+    words.forEach(function (word) {
+      if ((current + " " + word).trim().length > perLine && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = (current + " " + word).trim();
+      }
+    });
+    if (current) { lines.push(current); }
+    return lines.slice(0, 2);
+  }
+
+  /* --------------------------- pan / zoom -------------------------------- */
+
+  function applyTransform() {
+    ["g-base", "g-edge", "g-route", "g-pin"].forEach(function (id) {
+      var g = document.getElementById(id);
+      if (g) { g.setAttribute("transform", "translate(" + state.x + "," + state.y + ") scale(" + state.k + ")"); }
+    });
+  }
+  function clampState() {
+    state.k = Math.min(4, Math.max(0.6, state.k));
+    var lim = 460 * state.k;
+    state.x = Math.min(lim, Math.max(-lim, state.x));
+    state.y = Math.min(lim, Math.max(-lim, state.y));
+  }
+  function zoomBy(factor, cx, cy) {
+    var box = svg.getBoundingClientRect();
+    cx = cx === undefined ? VB_W / 2 : cx;
+    cy = cy === undefined ? VB_H / 2 : cy;
+    var prev = state.k;
+    state.k *= factor;
+    clampState();
+    // keep the point under the cursor / centre stationary
+    state.x = cx - (cx - state.x) * (state.k / prev);
+    state.y = cy - (cy - state.y) * (state.k / prev);
+    applyTransform();
+  }
+  function resetView() { state = { k: 1, x: 0, y: 0 }; applyTransform(); }
+
+  svg.addEventListener("wheel", function (ev) {
+    ev.preventDefault();
+    var box = svg.getBoundingClientRect();
+    var scale = Math.min(box.width / VB_W, box.height / VB_H);
+    var offX = (box.width - VB_W * scale) / 2, offY = (box.height - VB_H * scale) / 2;
+    zoomBy(ev.deltaY < 0 ? 1.15 : 1 / 1.15,
+           (ev.clientX - box.left - offX) / (scale * state.k),
+           (ev.clientY - box.top  - offY) / (scale * state.k));
+  }, { passive: false });
+
+  svg.addEventListener("mousedown", function (ev) {
+    if (ev.target.closest && ev.target.closest(".pin")) { return; }
+    dragging = true; dragStart = { mx: ev.clientX, my: ev.clientY, x: state.x, y: state.y };
+    svg.classList.add("dragging");
+  });
+  window.addEventListener("mouseup", function () {
+    dragging = false; svg.classList.remove("dragging");
+  });
+  window.addEventListener("mousemove", function (ev) {
+    if (!dragging) { return; }
+    state.x = dragStart.x + (ev.clientX - dragStart.mx);
+    state.y = dragStart.y + (ev.clientY - dragStart.my);
+    clampState();
+    applyTransform();
+  });
+
+  document.getElementById("zin").addEventListener("click",  function () { zoomBy(1.3); });
+  document.getElementById("zout").addEventListener("click", function () { zoomBy(1 / 1.3); });
+  document.getElementById("zfit").addEventListener("click", function () { resetView(); announce("Map view reset."); });
+
+  svg.addEventListener("keydown", function (ev) {
+    var step = 40;
+    if (ev.key === "ArrowLeft")  { state.x += step; }
+    else if (ev.key === "ArrowRight") { state.x -= step; }
+    else if (ev.key === "ArrowUp")    { state.y += step; }
+    else if (ev.key === "ArrowDown")  { state.y -= step; }
+    else if (ev.key === "0")          { resetView(); return; }
+    else { return; }
+    ev.preventDefault();
+    clampState(); applyTransform();
+  });
+  svg.setAttribute("tabindex", "0");
+
+  /* --------------------------- streamlit glue ---------------------------- */
+
+  /* The iframe is display:none until Streamlit receives setComponentReady, so
+     the first clientWidth reading is 0. Boot, then size once the first render
+     has laid the element out. */
+  window.Streamlit.setComponentReady();
+
+  function fitHeight() {
+    if (!window.Streamlit || !window.Streamlit.setFrameHeight) { return; }
+    var w = wrap.getBoundingClientRect().width;
+    if (w < 40) {
+      window.requestAnimationFrame(fitHeight);   // not laid out yet; try next frame
+      return;
+    }
+    var h = Math.max(340, Math.min(760, (w * VB_H) / VB_W));
+    window.Streamlit.setFrameHeight(Math.round(h + 6));
+  }
+
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(fitHeight).observe(wrap);
+  }
+  window.addEventListener("resize", fitHeight);
+
+  window.addEventListener("message", function (event) {
+    if (!event.data) { return; }
+    if (event.data.type === "streamlit:render") {
+      lastArgs = event.data.args || {};
+      if (lastArgs.theme && lastArgs.theme.base === "dark") {
+        document.body.classList.add("uata-dark");
+      }
+      render(lastArgs);
+    }
+  });
+
+  fitHeight();
+})();
+</script>
+</body>
+</html>

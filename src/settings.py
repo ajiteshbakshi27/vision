@@ -47,7 +47,7 @@ TEXT_SCALES = {
 #: Where the user is assumed to be standing unless they say otherwise.
 DEFAULT_ORIGIN = os.getenv("DEFAULT_ORIGIN", "MAIN_GATE")
 
-CAMPUS_NAME = os.getenv("CAMPUS_NAME", "Riverbend Campus")
+CAMPUS_NAME = os.getenv("CAMPUS_NAME", "Jaypee Campus")
 
 PROTOTYPE_DISCLAIMER = (
     "Prototype build. Locations, gradients and hazard reports on this map are "
